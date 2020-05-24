@@ -1,18 +1,28 @@
-/**
- Constantes de la zone de jeu
+/*
+    Constantes de la zone de jeu
 */
 pub const ARENA_HEIGHT: f32 = 100.0;
 pub const ARENA_WIDTH: f32 = 100.0;
 
-/**
- Constantes de la paddle
+/*
+    Constantes de la paddle
 */
 pub const PADDLE_HEIGHT: f32 = 16.0;
 pub const PADDLE_WIDTH: f32 = 4.0;
 
+/*
+    Constantes pour le balle
+*/
+pub const BALL_VELOCITY_X: f32 = 25.0;
+pub const BALL_VELOCITY_Y: f32 = 10.0;
+pub const BALL_RADIUS: f32 = 2.0;
+
 use amethyst::{
     assets::{AssetStorage, Loader, Handle},
-    core::transform::Transform,
+    core::{
+        transform::Transform,
+        timing::Time
+    },
     ecs::prelude::{Component, DenseVecStorage},
     prelude::*,
     renderer::{Camera, ImageFormat, SpriteRender, SpriteSheet, SpriteSheetFormat, Texture},
@@ -44,7 +54,11 @@ impl Component for Paddle {
     type Storage = DenseVecStorage<Self>;
 }
 
-pub struct Pong;
+#[derive(Default)]
+pub struct Pong {
+    ball_spawn_timer: Option<f32>,
+    sprite_sheet_handle: Option<Handle<SpriteSheet>>,
+}
 
 impl SimpleState for Pong {
     /*
@@ -53,15 +67,48 @@ impl SimpleState for Pong {
     fn on_start(&mut self, data: StateData<'_, GameData<'_, '_>>) {
         let world = data.world;
 
-        let sprite_sheet_handle = load_sprite_sheet(world);
+        self.ball_spawn_timer.replace(1.0);
 
         /*
-            Initialisation de la paddle et de la caméra
+            Initialisation de la balle, paddle et de la caméra
         */
-        initialise_paddles(world, sprite_sheet_handle);
+        self.sprite_sheet_handle.replace(load_sprite_sheet(world));
+        initialise_paddles(world, self.sprite_sheet_handle.clone().unwrap());
         initialise_camera(world);
     }
+
+    fn update(&mut self, data: &mut StateData<'_, GameData<'_, '_>>) -> SimpleTrans {
+        if let Some(mut timer) = self.ball_spawn_timer.take() {
+            // If the timer isn't expired yet, subtract the time that passed since the last update.
+            {
+                let time = data.world.fetch::<Time>();
+                timer -= time.delta_seconds();
+            }
+            if timer <= 0.0 {
+                // When timer expire, spawn the ball
+                initialise_ball(data.world, self.sprite_sheet_handle.clone().unwrap());
+            } else {
+                // If timer is not expired yet, put it back onto the state.
+                self.ball_spawn_timer.replace(timer);
+            }
+        }
+        Trans::None
+    }
 }
+
+
+pub struct Ball {
+    pub velocity: [f32; 2],
+    pub radius: f32
+}
+
+impl Component for Ball {
+    /*
+        On enregistre la vélocité et le radius de la balle
+    */
+    type Storage = DenseVecStorage<Self>;
+}
+
 
 /*
     Initialisation de la caméra
@@ -71,10 +118,10 @@ fn initialise_camera(world: &mut World) {
     transform.set_translation_xyz(ARENA_WIDTH * 0.5, ARENA_HEIGHT * 0.5, 1.0);
 
     world
-      .create_entity()
-      .with(Camera::standard_2d(ARENA_WIDTH, ARENA_HEIGHT))
-      .with(transform)
-      .build();
+        .create_entity()
+        .with(Camera::standard_2d(ARENA_WIDTH, ARENA_HEIGHT))
+        .with(transform)
+        .build();
 }
 
 /*
@@ -95,20 +142,42 @@ fn initialise_paddles(world: &mut World, sprite_sheet_handle: Handle<SpriteSheet
     };
 
     world
-      .create_entity()
-      .with(sprite_render.clone())
-      .with(Paddle::new(Side::Left))
-      .with(left_transform)
-      .build();
+        .create_entity()
+        .with(sprite_render.clone())
+        .with(Paddle::new(Side::Left))
+        .with(left_transform)
+        .build();
 
     world
-      .create_entity()
-      .with(sprite_render)
-      .with(Paddle::new(Side::Right))
-      .with(right_transform)
-      .build();
+        .create_entity()
+        .with(sprite_render)
+        .with(Paddle::new(Side::Right))
+        .with(right_transform)
+        .build();
 }
 
+fn initialise_ball(world: &mut World, sprite_sheet_handle: Handle<SpriteSheet>) {
+    let mut local_transform = Transform::default();
+    local_transform.set_translation_xyz(ARENA_WIDTH / 2.0, ARENA_HEIGHT / 2.0, 0.0);
+
+    /*
+        Chargement de sprite de la balle
+    */
+    let sprite_render = SpriteRender {
+        sprite_sheet: sprite_sheet_handle,
+        sprite_number: 1
+    };
+
+    world
+        .create_entity()
+        .with(sprite_render)
+        .with(Ball {
+            radius: BALL_RADIUS,
+            velocity: [BALL_VELOCITY_X, BALL_VELOCITY_Y],
+        })
+        .with(local_transform)
+        .build();
+}
 
 /*
     Chargement des sprites
