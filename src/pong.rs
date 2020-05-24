@@ -47,7 +47,7 @@ impl Component for Paddle {
 pub struct Pong;
 
 impl SimpleState for Pong {
-    /**
+    /*
         Quand la boucle commence
     */
     fn on_start(&mut self, data: StateData<'_, GameData<'_, '_>>) {
@@ -55,9 +55,7 @@ impl SimpleState for Pong {
 
         let sprite_sheet_handle = load_sprite_sheet(world);
 
-        world.register::<Paddle>();
-
-        /**
+        /*
             Initialisation de la paddle et de la caméra
         */
         initialise_paddles(world, sprite_sheet_handle);
@@ -65,7 +63,7 @@ impl SimpleState for Pong {
     }
 }
 
-/**
+/*
     Initialisation de la caméra
 */
 fn initialise_camera(world: &mut World) {
@@ -79,7 +77,7 @@ fn initialise_camera(world: &mut World) {
       .build();
 }
 
-/**
+/*
     Initialisation des Paddles
 */
 fn initialise_paddles(world: &mut World, sprite_sheet_handle: Handle<SpriteSheet>) {
@@ -112,7 +110,7 @@ fn initialise_paddles(world: &mut World, sprite_sheet_handle: Handle<SpriteSheet
 }
 
 
-/**
+/*
     Chargement des sprites
 */
 fn load_sprite_sheet(world: &mut World) -> Handle<SpriteSheet> {
@@ -127,7 +125,7 @@ fn load_sprite_sheet(world: &mut World) -> Handle<SpriteSheet> {
         )
     };
 
-    /**
+    /*
         Loader du monde
     */
     let loader = world.read_resource::<Loader>();
